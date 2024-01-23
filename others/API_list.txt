@@ -1,0 +1,23 @@
+Ryanair::
+
+Cheap flights (from):
+https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode=PRG&language=en&limit=16&market=en-ie&offset=0&outboundDepartureDateFrom=2024-01-22&outboundDepartureDateTo=2025-01-22&priceValueTo=1500
+
+1 Day (from to):
+https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&arrivalAirportIataCode=STN&departureAirportIataCode=PRG&language=en&limit=1&market=en-gb&offset=0&outboundDepartureDateFrom=2024-02-24&outboundDepartureDateTo=2024-02-24
+
+1 Month (from to): (not all month ??)
+https://www.ryanair.com/api/farfnd/3/oneWayFares/PRG/STN/cheapestPerDay?ToUs=AGREED&market=en-gb&outboundMonthOfDate=2024-02-01
+
+1Day Times and Fares (from to + flex in days): =
+https://www.ryanair.com/api/booking/v4/en-gb/availability?ADT=1&TEEN=0&CHD=0&INF=0&Origin=PRG&Destination=STN&promoCode=&IncludeConnectingFlights=false&Disc=0&DateOut=2024-03-23&FlexDaysBeforeOut=0&FlexDaysOut=0&DateIn=&FlexDaysBeforeIn=2&FlexDaysIn=2&RoundTrip=false&ToUs=AGREED
+
+
+
+Currencies::
+https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur/czk.json
+(https://github.com/fawazahmed0/currency-api#readme)
+
+
+
+
