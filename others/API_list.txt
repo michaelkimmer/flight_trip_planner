@@ -9,9 +9,10 @@ https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&arrivalAirportIata
 1 Month (from to): (not all month ??)
 https://www.ryanair.com/api/farfnd/3/oneWayFares/PRG/STN/cheapestPerDay?ToUs=AGREED&market=en-gb&outboundMonthOfDate=2024-02-01
 
-1Day Times and Fares (from to + flex in days): =
+1Day Times and Fares (from to + flex in days): [{"message":"Availability declined"} without being at page first]
 https://www.ryanair.com/api/booking/v4/en-gb/availability?ADT=1&TEEN=0&CHD=0&INF=0&Origin=PRG&Destination=STN&promoCode=&IncludeConnectingFlights=false&Disc=0&DateOut=2024-03-23&FlexDaysBeforeOut=0&FlexDaysOut=0&DateIn=&FlexDaysBeforeIn=2&FlexDaysIn=2&RoundTrip=false&ToUs=AGREED
 
+https://www.ryanair.com/api/booking/v4/en-gb/availability?ADT=1&TEEN=0&CHD=0&INF=0&Origin=PRG&Destination=BVA&promoCode=&IncludeConnectingFlights=false&Disc=0&DateOut=2024-02-29&FlexDaysBeforeOut=2&FlexDaysOut=2&DateIn=2024-03-06&FlexDaysBeforeIn=2&FlexDaysIn=2&RoundTrip=true&ToUs=AGREED
 
 
 Currencies::

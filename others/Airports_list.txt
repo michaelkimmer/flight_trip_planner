@@ -1,0 +1,182 @@
+Europe airports (not all) 
+from: https://www.stopovereurope.eu/cities-airports/airports-list/
+
+(AMS) - Schiphol
+
+(ATH) - Eleftherios Venizelos
+
+(BCN) - El Prat
+
+(BRI) - Aeroporto di Bari-Karol Wojtyła
+(BSL) - EuroAirport Basel Mulhouse Freiburg
+(BFS) - Belfast/Aldergrove Airport
+(BEG) - Aerodrom Nikola Tesla Beograd
+
+(BGO) - Bergen lufthavn, Flesland
+(TXL) - Tegel
+
+(BIO) - Aeropuerto de Bilbao
+(BLL) - Billund Lufthavn
+
+(BLQ) - Aeroporto di Bologna-Guglielmo Marconi
+(BOD) - Aéroport de Bordeaux-Mérignac
+(BTS) - Letisko M. R. Štefánika
+
+(BRS) - Bristol Airport
+(BRU) - Zaventem
+
+(CRL) - Charleroi
+
+(OTP) - Aeroportul Internațional Henri Coandă București
+
+(BUD) - Budapest Liszt Ferenc Nemzetközi Repülőtér
+
+(CAG) - Cagliari Elmas Airport
+
+(CTA) - Aeroporto di Catania-Fontanarossa
+(CHQ) - Ioannis Daskalogiannis Airport
+(KIV) - Aeroportul Internațional Chișinău
+
+(CPH) - Københavns Lufthavn, Kastrup
+
+(DUB) - Aerfort Bhaile Átha Cliath
+
+(DUS) - Flughafen Düsseldorf
+
+(EMA) - East Midlands Airport
+(EDI) - Edinburgh Airport
+(EIN) - Eindhoven Airport
+(FAO) - Aeroporto Internacional de Faro
+(FRA) - Flughafen Frankfurt am Main
+
+(EAP) - EuroAirport Basel Mulhouse Freiburg
+(GDN) - Gdańsk Lech Wałęsa Airport
+
+(GVA) - Aéroport de Genève
+
+(GLA) - Glesga Airport
+(GOT) - Göteborg Landvetter flygplats
+(RTM) - Rotterdam The Hague Airport
+
+(HAM) - Flughafen Hamburg
+
+(HAJ) - Flughafen Hannover-Langenhagen
+(HEL) - Helsinki-Vantaan lentoasema
+
+(HER) - Heraklion International Airport "Nikos Kazantzakis"
+
+(IBZ) - Aeropuerto de Ibiza
+
+(ISL) - İstanbul Atatürk Havalimanı
+
+(IST) - İstanbul Havalimanı
+
+(KTW) - Międzynarodowy Port Lotniczy Katowice
+(KRK) - Kraków Airport im. Jana Pawła II
+
+(KBP) - Boryspil International Airport
+
+(IEV) - Zhuliany
+
+(LCA) - Glafcos Clerides
+(LIS) - Aeroporto Humberto Delgado
+
+(LPL) - Liverpool John Lennon Airport
+(LJO) - Letališče Jožeta Pučnika Ljubljana
+
+(LCY) - London City Airport
+(LHR) - Heathrow Airport
+
+(LGW) - Gatwick Airport
+
+(LTN) - Luton Airport
+(STN) - Stansted Airport
+
+(LYS) - Aéroport de Lyon-Saint Exupéry
+(MAD) - Aeropuerto Adolfo Suárez  Madrid-Barajas
+
+(AGP) - Aeropuerto de Málaga-Costa del Sol
+(MMX) - Sturups flygplats
+
+(MLA) - Malta International Airport
+(MAN) - Manchester Airport
+(MRS) - Aéroport de Marseille Provence
+
+(LIN) - Aeroporto di Milano-Linate
+(MXP) - Aeroporto di Milano Malpensa
+
+(MSQ) - Minsk National Airport
+
+(DME) - Moscow Domodedovo Airport
+
+(SVO) - Sheremetyevo International Airport
+
+(VKO) - Vnukovo International Airport
+
+(MLH) - EuroAirport Basel Mulhouse Freiburg
+(MUC) - Flughafen München
+
+(FMM) - Allgäu Airport Memmingen
+
+(JMK) - Αερολιμένας Μυκόνου
+(NTE) - Aéroport Nantes Atlantique
+(NAP) - Aeroporto di Napoli-Capodichino
+(NCL) - Newcastle International Airport
+(NUE) - Albrecht Dürer Flughafen Nürnberg
+(OSL) - Oslo Lufthavn Gardermoen
+
+(PMO) - Aeroporto Falcone Borsellino
+(PMI) - Aeropuerto de Palma de Mallorca
+(CDG) - Aéroport de Paris-Charles-de-Gaulle
+(ORY) - Aéroport de Paris-Orly
+
+(PSA) - Aeroporto Internazionale di Pisa
+
+(OPO) - Francisco Sá Carneiro Airport
+(PRG) - Letiště Václava Havla Praha
+
+(KEF) - Keflavík
+(RIX) - Starptautiskā lidosta "Rīga"
+
+(KEF) - Keflavík
+(RHO) - Diagoras
+(CIA) - Aeroporto Internazionale di Roma–Ciampino "G. B. Pastine"
+
+(FCO) - Aeroporto Internazionale di Roma–Fiumicino "Leonardo da Vinci"
+
+(RTM) - Rotterdam The Hague Airport
+
+(SJJ) - Međunarodni aerodrom Sarajevo
+(SVQ) - Aeropuerto de Sevilla
+(JSH) - Vitsentzos Kornaros Airport
+(LED) - Pulkovo Airport
+
+(SOF) - Sofia Airport
+
+(SVG) - Stavanger lufthavn, Sola
+(ARN) - Stockholm-Arlanda flygplats
+
+(BMA) - Stockholm-Bromma flygplats
+
+(NYO) - Stockholm-Skavsta flygplats
+
+(STR) - Flughafen Stuttgart
+
+(SKG) - Thessaloniki Airport "Makedonia"
+
+(TLS) - Aéroport de Toulouse–Blagnac
+(TZL) - Međunarodni aerodrom Tuzla
+(TRD) - Trondheim lufthavn, Værnes
+(VLC) - Aeropuerto de Valencia, Manises
+(VCE) - Aeroporto di Venezia Marco Polo
+
+(VIE) - Wien Schwechat
+
+(VNO) - Tarptautinis Vilniaus oro uostas
+(WAW) - Lotnisko Chopina w Warszawie
+
+(WMI) - Port Lotniczy Warszawa/Modlin
+
+(ZAG) - Međunarodna zračna luka Franjo Tuđman Zagreb
+
+(ZRH) - Flughafen Zürich
