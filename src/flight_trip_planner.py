@@ -1,5 +1,7 @@
 import urllib.request, json 
 import datetime
+import time # sleep
+import random
 
 DEBUG_RYANAIR = True
 DEBUG_BSF = True
@@ -19,11 +21,11 @@ class Airport():
         
         # Bools
         self.cheapDestinations_searched = {'Ryanair': False}
-        self.flights_searched = {'Ryanair': False}
+        # self.flights_searched = {'Ryanair': False}
 
 
     # Get all cheap destinations + flights
-    def search_Ryanair_cheapDestinations(self, trip_boundraries, max_price):
+    def search_Ryanair_cheapDestinations(self, trip_boundaries, max_price):
         # Escape when already done
         if self.cheapDestinations_searched['Ryanair']:
             return
@@ -31,7 +33,8 @@ class Airport():
         
         # Get cheap destinations
         max_destinations = 50
-        with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundraries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundraries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price}") as url:
+        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price}") as url:
             destinations_json = json.load(url)
         # TODO: Exception
         
@@ -58,37 +61,64 @@ class Airport():
                 self.data_destinations.append(connection)
                 dest_airport_ref.data_incommings.append(connection)
                 
-        # Get flights into each cheap destinations
-        for dest_code in self.cheapDestinations['Ryanair']:
-            # self._search_Ryanair_cheapFlights(trip_boundraries, max_price)
-            pass
+        
+        # Fill each connection with flights (Get flights into this cheap destinations)  
+        for connection in self.data_destinations:
+            if connection.airport_arrival.code in self.cheapDestinations['Ryanair']:
+                self._search_Ryanair_cheapFlights(connection, trip_boundaries, max_price)
+            
+
 
     # Get cheap flights into destination --> FILL its connection
-    def _search_Ryanair_cheapFlights(self, connection, trip_boundraries, max_price):
+    def _search_Ryanair_cheapFlights(self, connection, trip_boundaries, max_price):
         source = connection.airport_departure
         dest = connection.airport_arrival
         
         
-        # Get 1 month of flights !!
-        # years
-        # months
-        # for month in ...:
-        #     with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares/{source.code}/{dest.code}/cheapestPerDay?ToUs=AGREED&market=en-gb&outboundMonthOfDate=2024-{month:02}-01") as url:
-        #         data_month = json.load(url)
-        
-        # N_days = len(self.data_month['outbound']['fares'])
-        # currency = self.data_month['outbound']['fares'][0]['price']['currencyCode']
-        
-        # days = [self.data_month['outbound']['fares'][i]['day'] for i in range(N_days)]
-        # departureDates = [self.data_month['outbound']['fares'][i]['departureDate'] for i in range(N_days)]
-        # arrivalDates = [self.data_month['outbound']['fares'][i]['arrivalDate'] for i in range(N_days)]
-        
-        # prices = [self.data_month['outbound']['fares'][i]['price']['value'] for i in range(N_days)]
-        
-        # for day,departureDate, arrivalDate, price in zip(days, departureDates, arrivalDates, prices):
-        #     print(f"{day} ({departureDate} --> {arrivalDate}): {price} {currency}")
+        # months one by one -- iterate
+        year_min = trip_boundaries[0].year
+        year_max = trip_boundaries[1].year
+        for year in range(year_min, year_max + 1):
+            if year == year_min:
+                month_min = trip_boundaries[0].month
+            else:
+                month_min = 1
+            if year == year_max:
+                month_max = trip_boundaries[1].month
+            else:
+                mont_max = 12
+            for month in range(month_min, month_max + 1):
+                
+                # Get 1 month of flights !!
+                time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+                with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares/{source.code}/{dest.code}/cheapestPerDay?ToUs=AGREED&market=en-gb&outboundMonthOfDate={year:4}-{month:02}-01") as url:
+                    data_month = json.load(url)
+                # TODO: Exception
+                
+                # Process the monthly data
+                # TODO: currency
+                N_days = len(data_month['outbound']['fares'])
+                # currency = self.data_month['outbound']['fares'][0]['price']['currencyCode']
+                
+                prices = []
+                departureDates = []
+                arrivalDates = []
+                for i in range(N_days):
+                    if not data_month['outbound']['fares'][i]['unavailable']:
+                        departureDate_str = data_month['outbound']['fares'][i]['departureDate']
+                        arrivalDate_str = data_month['outbound']['fares'][i]['arrivalDate']
+                        price = data_month['outbound']['fares'][i]['price']['value'] #TODO: currency !!
+                        
+                        prices.append(price)
+                        departureDates.append(datetime.datetime.strptime(departureDate_str, '%Y-%m-%dT%H:%M:%S'))
+                        arrivalDates.append(datetime.datetime.strptime(arrivalDate_str, '%Y-%m-%dT%H:%M:%S') )
+                        
+                    
+                # Save all OK fights in this connection
+                for price, departureDate, arrivalDate in zip(prices, departureDates, arrivalDates):
+                    if price <= max_price:  # TODO: max dates can be outside the boundaries !
+                        connection.add_flight('Ryanair', departureDate, price, departureDate, arrivalDate)
             
-        pass
 
 
 # Dict Memory of all used airports
@@ -125,38 +155,36 @@ class Trip_Destination():
 # Represents connection == all flights: airport_departure ---> airport_arrival
 # A Connection can be COMPLETE (== all info included) or NOT (then other parameters can be set later)
 class Connection():
-    def __init__(self, airport_departure, airport_arrival, companies=[], days_departure=[], prices=[], times_departure=[], times_arrival=[]) -> None:
-        assert len(companies) == len(days_departure) == len(prices) == len(times_departure) == len(times_arrival), "Parameters must meet: len(times_departure) == len(times_arrival) == len(prices)"
-        
+    def __init__(self, airport_departure, airport_arrival, flights=None) -> None:        
         self.airport_departure = airport_departure  # Airport object
         self.airport_arrival = airport_arrival      # Airport object
+        if flights is None:
+            self.flights = []
         
-        self.companies = companies
-        self.days_departure = days_departure
-        self.prices = prices
-        self.times_departure = times_departure
-        self.times_arrival = times_arrival
-        
-        
-    
     # Check emptiness of the Flight
     def isEmpty(self):
-        return not self.time_departure or not self.time_arrival or not self.price
+        return not self.flights
     
     def add_flight(self, company, day_depature, price, time_departure=None, time_arrival=None):
-        self.companies.append(company)
-        self.days_departure.append(day_depature)
-        self.prices.append(price)
+        newFlight = Flight(self.airport_departure, self.airport_arrival, company, day_depature, price, time_departure, time_arrival)
+        self.flights.append(newFlight)
         
-        self.times_departure.append(time_departure)
-        self.times_arrival.append(time_arrival)
+
         
-        
-    
+# Data structure stored in Connection       
+class Flight():
+    def __init__(self, airport_departure, airport_arrival, company, day_depature, price, time_departure=None, time_arrival=None) -> None:
+        self.airport_departure = airport_departure
+        self.airport_arrival = airport_arrival
+        self.company = company
+        self.day_depature = day_depature
+        self.price = price
+        self.time_departure = time_departure
+        self.time_arrival = time_arrival
     
     
 class Trip():
-    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundraries, trip_max_price) -> None:
+    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price) -> None:
         
         # Check codes vs durations
         assert len(stops_codes) == len(stops_durations), "Stops must meet: len(stops_codes) == len(stops_durations)"
@@ -165,9 +193,9 @@ class Trip():
         
         # TODO: Select stop_code None for Anything 
         
-        # Select trip_boundraries None for whole next month
-        if trip_boundraries is None:
-            trip_boundraries = (datetime.datetime.now(), datetime.datetime.now() + datetime.timedelta(days=30))
+        # Select trip_boundaries None for whole next month
+        if trip_boundaries is None:
+            trip_boundaries = (datetime.datetime.now(), datetime.datetime.now() + datetime.timedelta(days=30))
         
         
         
@@ -181,7 +209,7 @@ class Trip():
         self.stops = [Trip_Stop(self.airports_memory, stop_codes, stop_duration) for stop_codes, stop_duration in zip(stops_codes, stops_durations)]  # Obligatory stops
         
         # Save other trip parameters
-        self.trip_boundraries = trip_boundraries
+        self.trip_boundaries = trip_boundaries
         self.trip_max_price = trip_max_price
 
 
@@ -195,14 +223,18 @@ class Trip():
         current_sources = self.source.airports
         
         for source in current_sources:
-            source.search_Ryanair_cheapDestinations(trip_boundraries, trip_max_price)
+            source.search_Ryanair_cheapDestinations(trip_boundaries, trip_max_price)
     
     
-        if DEBUG_BSF:
-            pass
-        
-        
-        
+    def debug_print_connections(self):
+        print("Found Connections:")
+        for airport_code in self.airports_memory.airports_memory:
+            airport = self.airports_memory.airports_memory[airport_code]
+            for connection in airport.data_destinations:
+                dest_airport = connection.airport_arrival
+                print(f"\t{airport.code}-->{dest_airport.code}: ")
+                for flight in connection.flights:
+                    print(f"\t\tCompany: {flight.company}, price: {flight.price}, time dep.: {flight.time_departure}, time arr.: {flight.time_arrival}")
         
         
         
@@ -216,18 +248,20 @@ if __name__ == "__main__":
     time_now = datetime.datetime.now()
     time_inMonth = time_now + datetime.timedelta(days=30)
     
-    sources_codes = ('PRG', 'BRQ')
+    sources_codes = ('PRG', 'BRQ',)  # ('PRG', 'BRQ')
     destinations_codes = ('PRG', 'BRQ')
     stops_codes = [('STN', 'LTN')]
     stops_durations = [(2,4)]
-    trip_boundraries = [time_now, time_inMonth]
+    trip_boundaries = [time_now, time_inMonth]
     trip_max_price = 1000 #TODO: currency !
 
-    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundraries, trip_max_price)
+    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price)
     
     # Search for an optimal paths
     trip.searchBSF()
     
     # Debug END
-    pass
+    if DEBUG_BSF:
+        trip.debug_print_connections()
+    
 
