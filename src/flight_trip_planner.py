@@ -2,8 +2,10 @@ import urllib.request, json
 import datetime
 import time # sleep
 import random
+import pickle # save and load objects
 
-DEBUG_RYANAIR = True
+DEBUG_BASIC = True
+DEBUG_RYANAIR = False
 DEBUG_BSF = True
 
 
@@ -30,6 +32,9 @@ class Airport():
         if self.cheapDestinations_searched['Ryanair']:
             return
         self.cheapDestinations_searched['Ryanair'] = True
+
+        if DEBUG_BASIC:
+            print(f"Getting cheap destinations from {self.code}")
         
         # Get cheap destinations
         max_destinations = 50
@@ -74,6 +79,8 @@ class Airport():
         source = connection.airport_departure
         dest = connection.airport_arrival
         
+        if DEBUG_BASIC:
+            print(f"Getting cheap flights {source.code}-->{dest.code}")
         
         # months one by one -- iterate
         year_min = trip_boundaries[0].year
@@ -116,8 +123,9 @@ class Airport():
                     
                 # Save all OK fights in this connection
                 for price, departureDate, arrivalDate in zip(prices, departureDates, arrivalDates):
-                    if price <= max_price:  # TODO: max dates can be outside the boundaries !
-                        connection.add_flight('Ryanair', departureDate, price, departureDate, arrivalDate)
+                    # if price <= max_price:  # Do this in searching --> save all data
+                    # TODO: max dates can be outside the boundaries !
+                    connection.add_flight('Ryanair', departureDate, price, departureDate, arrivalDate)
             
 
 
@@ -125,6 +133,10 @@ class Airport():
 class Airports_Dict():
     def __init__(self) -> None:
         self.airports_memory = {}
+
+        # For saving and loading obtained data
+        self.date_created = datetime.datetime.now()
+        self.filename = "src/saved_data/airports_memory.pkl"
         
     def get_ref(self, code):
         if code not in self.airports_memory:
@@ -201,6 +213,7 @@ class Trip():
         
         # Create Airport memory (adding is done by getting refs)
         self.airports_memory = Airports_Dict()
+        self.load_memory(validity=datetime.timedelta(hours=12))
 
         
         # Create Trip stops objects
@@ -214,18 +227,21 @@ class Trip():
 
 
     # Search for routes: BSF from Trip_Source --> Trip_Destination
-    def searchBSF(self):
+    def searchBSF(self, BSF_depth):
     
         # Outcome -- 2D List of Connections forming valid paths
         valid_paths = []
     
         # Initialize BSF with sources (Airports)
         current_sources = self.source.airports
+        current_destinations = []
         
-        for source in current_sources:
-            source.search_Ryanair_cheapDestinations(trip_boundaries, trip_max_price)
+        for i_flight in range(BSF_depth):
+            for source in current_sources:
+                source.search_Ryanair_cheapDestinations(trip_boundaries, trip_max_price)
     
     
+    # Print all found connections
     def debug_print_connections(self):
         print("Found Connections:")
         for airport_code in self.airports_memory.airports_memory:
@@ -235,7 +251,36 @@ class Trip():
                 print(f"\t{airport.code}-->{dest_airport.code}: ")
                 for flight in connection.flights:
                     print(f"\t\tCompany: {flight.company}, price: {flight.price}, time dep.: {flight.time_departure}, time arr.: {flight.time_arrival}")
+
+
+    # Save memory -- whole Airports_Dict
+    def save_memory(self):
+        filename = self.airports_memory.filename
+        with open(filename, 'wb') as file:
+            pickle.dump(self.airports_memory, file)
+            if DEBUG_BASIC:
+                print(f'Object successfully saved to "{filename}"')
+
+    # Load data memory Airports_Dict --- if too old --> ignore
+    def load_memory(self, validity):
+        filename = self.airports_memory.filename
         
+        try:
+            with open(filename, 'rb') as file:
+                loaded_airports_memory = pickle.load(file)
+        except FileNotFoundError:
+            if DEBUG_BASIC:
+                print("Loading file not found -- ignoring")
+            return
+            
+        # Check data temporal validity
+        if loaded_airports_memory.date_created + validity > datetime.datetime.now():
+            self.airports_memory = loaded_airports_memory # Rewrite memory
+            if DEBUG_BASIC:
+                print(f"Data loaded, data last update: {loaded_airports_memory.date_created}")
+        else:
+            if DEBUG_BASIC:
+                print(f"Saved data ({loaded_airports_memory.date_created}) are too old -- ignoring")
         
         
         
@@ -258,9 +303,14 @@ if __name__ == "__main__":
     trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price)
     
     # Search for an optimal paths
-    trip.searchBSF()
+    BSF_depth = 2
+    trip.searchBSF(BSF_depth)
     
-    # Debug END
+    # Save memory of airports in trip
+    trip.save_memory()
+
+
+    # Debug Print all found connections
     if DEBUG_BSF:
         trip.debug_print_connections()
     
