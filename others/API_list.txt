@@ -1,5 +1,12 @@
 Ryanair::
 
+Airports list:
+https://www.ryanair.com/api/booking/v4/en-gb/res/stations
+Currencies list:
+https://www.ryanair.com/api/booking/v4/en-gb/res/currencies
+Countries list:
+https://www.ryanair.com/api/views/locate/3/aggregate/all/en
+
 Cheap flights (from):
 https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode=PRG&language=en&limit=16&market=en-ie&offset=0&outboundDepartureDateFrom=2024-01-22&outboundDepartureDateTo=2025-01-22&priceValueTo=1500
 

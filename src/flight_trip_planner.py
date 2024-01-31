@@ -6,15 +6,34 @@ import pickle # save and load objects
 
 DEBUG_BASIC = True
 DEBUG_RYANAIR = False
-DEBUG_BSF = True
+DEBUG_CONNECTIONS = False
+DEBUG_TRIPS = True
 
+
+# Convert currencies fcn
+def currency_convert(code_from, code_to, price_from):
+
+    if DEBUG_BASIC:
+        print(f"Requesting conversion: {code_from}-->{code_to}")
+
+    time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+    with urllib.request.urlopen(f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{code_from.lower()}/{code_to.lower()}.json") as url:
+        rate_json = json.load(url)
+
+    rate = rate_json[code_to.lower()]
+
+    price_to = price_from * rate
+    return price_to
 
 class Airport():
-    def __init__(self, code, memory_ref) -> None:
+    def __init__(self, code, memory_ref, name, currency) -> None:
         # Info
         self.code = code
         self.memory_ref = memory_ref
-        # self.name = None # Name of the airport
+
+        # More advanced parameters 
+        self.currency = currency
+        self.name = name 
         
         # Data
         self.cheapDestinations = {'Ryanair': []} # list of codes
@@ -24,6 +43,9 @@ class Airport():
         # Bools
         self.cheapDestinations_searched = {'Ryanair': False}
         # self.flights_searched = {'Ryanair': False}
+
+        # Searching alg bool
+        self.visited = False # Note we can use an airport twice !!, (not used)
 
 
     # Get all cheap destinations + flights
@@ -38,8 +60,10 @@ class Airport():
         
         # Get cheap destinations
         max_destinations = 50
+        max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
+
         time.sleep(0.5*random.random()) #sleep random time 0..0.5s
-        with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price}") as url:
+        with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price_local_currency}") as url:
             destinations_json = json.load(url)
         # TODO: Exception
         
@@ -103,9 +127,12 @@ class Airport():
                 # TODO: Exception
                 
                 # Process the monthly data
-                # TODO: currency
                 N_days = len(data_month['outbound']['fares'])
-                # currency = self.data_month['outbound']['fares'][0]['price']['currencyCode']
+                if N_days == 0:
+                    return
+
+                # Convert all prices to EUR
+                currency_rate = currency_convert(self.currency, "EUR", 1)
                 
                 prices = []
                 departureDates = []
@@ -114,7 +141,7 @@ class Airport():
                     if not data_month['outbound']['fares'][i]['unavailable']:
                         departureDate_str = data_month['outbound']['fares'][i]['departureDate']
                         arrivalDate_str = data_month['outbound']['fares'][i]['arrivalDate']
-                        price = data_month['outbound']['fares'][i]['price']['value'] #TODO: currency !!
+                        price = currency_rate * data_month['outbound']['fares'][i]['price']['value'] 
                         
                         prices.append(price)
                         departureDates.append(datetime.datetime.strptime(departureDate_str, '%Y-%m-%dT%H:%M:%S'))
@@ -123,8 +150,8 @@ class Airport():
                     
                 # Save all OK fights in this connection
                 for price, departureDate, arrivalDate in zip(prices, departureDates, arrivalDates):
-                    # if price <= max_price:  # Do this in searching --> save all data
-                    # TODO: max dates can be outside the boundaries !
+                    # if price <= max_price:  # Do this in searching --> save all data !
+                    # Max dates can be outside the boundaries --> save all data !
                     connection.add_flight('Ryanair', departureDate, price, departureDate, arrivalDate)
             
 
@@ -132,15 +159,43 @@ class Airport():
 # Dict Memory of all used airports
 class Airports_Dict():
     def __init__(self) -> None:
-        self.airports_memory = {}
+        self.airports_memory = {} # Dict of used Airports
 
         # For saving and loading obtained data
         self.date_created = datetime.datetime.now()
         self.filename = "src/saved_data/airports_memory.pkl"
+
+        if DEBUG_BASIC:
+            print(f"Getting Airports JSON")
+
+        # Load currencies 
+        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        with urllib.request.urlopen(f"https://www.ryanair.com/api/booking/v4/en-gb/res/stations") as url:
+            airports_json = json.load(url)
+        airports_countries = {airport : airports_json[airport]['country'] for airport in airports_json} # Dict of airport:country
+        self.name_memory = {airport : airports_json[airport]['name'] for airport in airports_json} # Dict of airport:name
+
+        if DEBUG_BASIC:
+            print(f"Getting Countries JSON")
+
+        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        with urllib.request.urlopen(f"https://www.ryanair.com/api/views/locate/3/aggregate/all/en") as url:
+            countries_json = json.load(url)
+        countries_currencies = {country_line['code'] : country_line['currency'] for country_line in countries_json['countries']}
+
+        self.currencies_memory = {} # Dict of Airport Code : Currency
+        for airport, country in airports_countries.items():
+            if country.lower() in countries_currencies:
+                self.currencies_memory[airport] = countries_currencies[country.lower()]
+            else:
+                self.currencies_memory[airport] = 'EUR' # Country not found --> Assign 'EUR' 
+
+
         
     def get_ref(self, code):
         if code not in self.airports_memory:
-            self.airports_memory[code] = Airport(code, self)
+            self.airports_memory[code] = Airport(code, self, self.name_memory[code], self.currencies_memory[code])
+
         return self.airports_memory[code]
     
     def isSaved(self, code):
@@ -154,6 +209,9 @@ class Trip_Stop():
     def __init__(self, memory, codes, duration) -> None:
         self.duration = duration # Time interval (eg. 2-4 days)
         self.airports = [memory.get_ref(code) for code in codes]
+
+        # Searching alg bool
+        self.visited = False
         
 class Trip_Source():
     def __init__(self, memory, codes) -> None:
@@ -196,7 +254,7 @@ class Flight():
     
     
 class Trip():
-    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price) -> None:
+    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration) -> None:
         
         # Check codes vs durations
         assert len(stops_codes) == len(stops_durations), "Stops must meet: len(stops_codes) == len(stops_durations)"
@@ -224,21 +282,74 @@ class Trip():
         # Save other trip parameters
         self.trip_boundaries = trip_boundaries
         self.trip_max_price = trip_max_price
+        self.transfer_duration = transfer_duration
 
 
-    # Search for routes: BSF from Trip_Source --> Trip_Destination
-    def searchBSF(self, BSF_depth):
-    
+    # Search for routes: DSF from Trip_Source --> Trip_Destination
+    def searchDSF(self, DSF_maxdepth):
+
         # Outcome -- 2D List of Connections forming valid paths
         valid_paths = []
-    
-        # Initialize BSF with sources (Airports)
-        current_sources = self.source.airports
-        current_destinations = []
+
+
+        # DSF recursionfunction
+        act_path = []
+        def DSF_recursion(current_source, DSF_depth, current_time, current_price):
+
+            # Note: an airport can be used more times --> no mark of visited node --> track actual path of flights
+            # Check this Airport -- Final Destination !
+            if (current_source in self.destination.airports) and (DSF_depth > 0):
+                # All Stops travelled?
+                if False not in [stop.visited for stop in self.stops]: # TODO: set stop.visited !!!
+                    valid_paths.append(act_path.copy())
+                return
+            
+            # Max depth reached  --> stop
+            elif not (DSF_depth+1 <= DSF_maxdepth):
+                return
+            
+            # Time boundaries of this Airport flights
+            current_boundaries = [current_time + self.transfer_duration[0], current_time + self.transfer_duration[1]]  # Preset transfer boundaries
+            # Check this Airport -- source?
+            if DSF_depth == 0:
+                current_boundaries = self.trip_boundaries 
+            else:
+                # Check this Airport -- Stop? (unvisited? -- otherwise treat as transfer)
+                for stop in self.stops:
+                    if (current_source in stop.airports) and (not stop.visited):
+                        current_boundaries = [current_time + stop.duration[0], current_time + stop.duration[1]]
+                        break
+            
+            
+
+            # update flights 
+            current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
+
+            # Use each possible flight
+            for connection in current_source.data_destinations:
+                current_dest = connection.airport_arrival
+
+                for flight in connection.flights:
+                    
+                    # Check flight constraints (depth- above, price, time) 
+                    if (current_price + flight.price < self.trip_max_price) and (current_boundaries[0] < flight.time_departure < current_boundaries[1]): 
+                        act_path.append(flight)
+                        DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price) # TODO: start also at other airports in the Stop !!!
+                        act_path.pop()
         
-        for i_flight in range(BSF_depth):
-            for source in current_sources:
-                source.search_Ryanair_cheapDestinations(trip_boundaries, trip_max_price)
+
+        
+            
+    
+        # Initialize DSF with sources (Airports)
+        sources = self.source.airports
+        for source in sources:
+            DSF_recursion(source, DSF_depth=0, current_time=self.trip_boundaries[0], current_price=0)
+            
+            
+        return valid_paths
+
+    
     
     
     # Print all found connections
@@ -251,6 +362,16 @@ class Trip():
                 print(f"\t{airport.code}-->{dest_airport.code}: ")
                 for flight in connection.flights:
                     print(f"\t\tCompany: {flight.company}, price: {flight.price}, time dep.: {flight.time_departure}, time arr.: {flight.time_arrival}")
+
+    # Print all valid paths
+    def print_valid_paths(self, valid_paths):
+        print("Valid paths:")
+
+        for path in valid_paths:
+            print(f"\t{path[0].airport_departure.code}", end="")
+            for flight in path:
+                print(f"--({flight.time_departure}, {flight.price}EUR)-->{flight.airport_arrival.code}")
+
 
 
     # Save memory -- whole Airports_Dict
@@ -296,22 +417,31 @@ if __name__ == "__main__":
     sources_codes = ('PRG', 'BRQ',)  # ('PRG', 'BRQ')
     destinations_codes = ('PRG', 'BRQ')
     stops_codes = [('STN', 'LTN')]
-    stops_durations = [(2,4)]
-    trip_boundaries = [time_now, time_inMonth]
-    trip_max_price = 1000 #TODO: currency !
+    stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=4))]
+    # trip_boundaries = [time_now, time_inMonth]
+    trip_boundaries = [time_now + datetime.timedelta(days=1), time_now + datetime.timedelta(days=29)]
+    trip_max_price = 50 # Currency: "EUR"
+    transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=5))
 
-    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price)
+    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration)
     
     # Search for an optimal paths
-    BSF_depth = 2
-    trip.searchBSF(BSF_depth)
+    DSF_maxdepth = 1
+    valid_paths = trip.searchDSF(DSF_maxdepth)
     
     # Save memory of airports in trip
     trip.save_memory()
 
 
     # Debug Print all found connections
-    if DEBUG_BSF:
+    if DEBUG_CONNECTIONS:
         trip.debug_print_connections()
+
+
+    # Debug Print all found trips
+    if DEBUG_TRIPS:
+        trip.print_valid_paths(valid_paths)
+
+    pass
     
 
