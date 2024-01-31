@@ -60,7 +60,11 @@ class Airport():
         
         # Get cheap destinations
         max_destinations = 50
-        max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
+
+        if self.currency == 'EUR':
+            max_price_local_currency = round(max_price)
+        else:
+            max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
 
         time.sleep(0.5*random.random()) #sleep random time 0..0.5s
         with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price_local_currency}") as url:
@@ -271,7 +275,7 @@ class Trip():
         
         # Create Airport memory (adding is done by getting refs)
         self.airports_memory = Airports_Dict()
-        self.load_memory(validity=datetime.timedelta(hours=12))
+        self.load_memory(validity=datetime.timedelta(hours=24))
 
         
         # Create Trip stops objects
@@ -300,12 +304,14 @@ class Trip():
             # Check this Airport -- Final Destination !
             if (current_source in self.destination.airports) and (DSF_depth > 0):
                 # All Stops travelled?
-                if False not in [stop.visited for stop in self.stops]: # TODO: set stop.visited !!!
+                if False not in [stop.visited for stop in self.stops]: 
                     valid_paths.append(act_path.copy())
                 return
-            
             # Max depth reached  --> stop
-            elif not (DSF_depth+1 <= DSF_maxdepth):
+            elif DSF_depth >= DSF_maxdepth: # Note: 0 --> No flights searched
+                return
+            # Price never goes under 14EUR !!
+            elif current_price + 14 > self.trip_max_price:
                 return
             
             # Time boundaries of this Airport flights
@@ -317,6 +323,7 @@ class Trip():
                 # Check this Airport -- Stop? (unvisited? -- otherwise treat as transfer)
                 for stop in self.stops:
                     if (current_source in stop.airports) and (not stop.visited):
+                        stop.visited = True
                         current_boundaries = [current_time + stop.duration[0], current_time + stop.duration[1]]
                         break
             
@@ -369,8 +376,14 @@ class Trip():
 
         for path in valid_paths:
             print(f"\t{path[0].airport_departure.code}", end="")
+            last_arrival = path[0].airport_departure.code
             for flight in path:
+                if last_arrival != flight.airport_departure.code:
+                    # Leave stop from different airport
+                    print(f"--{flight.airport_departure.code}")
+                    
                 print(f"--({flight.time_departure}, {flight.price}EUR)-->{flight.airport_arrival.code}")
+                last_arrival = flight.airport_arrival.code
 
 
 
@@ -420,14 +433,14 @@ if __name__ == "__main__":
     stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=4))]
     # trip_boundaries = [time_now, time_inMonth]
     trip_boundaries = [time_now + datetime.timedelta(days=1), time_now + datetime.timedelta(days=29)]
-    trip_max_price = 50 # Currency: "EUR"
+    trip_max_price = 40 # Currency: "EUR"
     transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=5))
 
     trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration)
     
     # Search for an optimal paths
-    DSF_maxdepth = 1
-    valid_paths = trip.searchDSF(DSF_maxdepth)
+    DSF_maxdepth = 2 # Note: 0 --> No flights searched
+    valid_paths = trip.searchDSF(DSF_maxdepth) 
     
     # Save memory of airports in trip
     trip.save_memory()
