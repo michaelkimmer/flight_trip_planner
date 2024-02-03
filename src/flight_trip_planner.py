@@ -3,6 +3,10 @@ import datetime
 import time # sleep
 import random
 import pickle # save and load objects
+import os
+
+
+WAIT_MAX_INTERVAL = 0.2
 
 DEBUG_BASIC = True
 DEBUG_RYANAIR = False
@@ -16,7 +20,7 @@ def currency_convert(code_from, code_to, price_from):
     if DEBUG_BASIC:
         print(f"Requesting conversion: {code_from}-->{code_to}")
 
-    time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+    time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
     with urllib.request.urlopen(f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{code_from.lower()}/{code_to.lower()}.json") as url:
         rate_json = json.load(url)
 
@@ -66,7 +70,7 @@ class Airport():
         else:
             max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
 
-        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
         with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price_local_currency}") as url:
             destinations_json = json.load(url)
         # TODO: Exception
@@ -125,7 +129,7 @@ class Airport():
             for month in range(month_min, month_max + 1):
                 
                 # Get 1 month of flights !!
-                time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+                time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
                 with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares/{source.code}/{dest.code}/cheapestPerDay?ToUs=AGREED&market=en-gb&outboundMonthOfDate={year:4}-{month:02}-01") as url:
                     data_month = json.load(url)
                 # TODO: Exception
@@ -173,7 +177,7 @@ class Airports_Dict():
             print(f"Getting Airports JSON")
 
         # Load currencies 
-        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
         with urllib.request.urlopen(f"https://www.ryanair.com/api/booking/v4/en-gb/res/stations") as url:
             airports_json = json.load(url)
         airports_countries = {airport : airports_json[airport]['country'] for airport in airports_json} # Dict of airport:country
@@ -182,7 +186,7 @@ class Airports_Dict():
         if DEBUG_BASIC:
             print(f"Getting Countries JSON")
 
-        time.sleep(0.5*random.random()) #sleep random time 0..0.5s
+        time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
         with urllib.request.urlopen(f"https://www.ryanair.com/api/views/locate/3/aggregate/all/en") as url:
             countries_json = json.load(url)
         countries_currencies = {country_line['code'] : country_line['currency'] for country_line in countries_json['countries']}
@@ -315,6 +319,7 @@ class Trip():
                 return
             
             # Time boundaries of this Airport flights
+            this_airport_stop = None
             current_boundaries = [current_time + self.transfer_duration[0], current_time + self.transfer_duration[1]]  # Preset transfer boundaries
             # Check this Airport -- source?
             if DSF_depth == 0:
@@ -323,8 +328,9 @@ class Trip():
                 # Check this Airport -- Stop? (unvisited? -- otherwise treat as transfer)
                 for stop in self.stops:
                     if (current_source in stop.airports) and (not stop.visited):
-                        stop.visited = True
-                        current_boundaries = [current_time + stop.duration[0], current_time + stop.duration[1]]
+                        this_airport_stop = stop
+                        this_airport_stop.visited = True
+                        current_boundaries = [current_time + this_airport_stop.duration[0], current_time + this_airport_stop.duration[1]]
                         break
             
             
@@ -343,6 +349,11 @@ class Trip():
                         act_path.append(flight)
                         DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price) # TODO: start also at other airports in the Stop !!!
                         act_path.pop()
+            
+            
+            # When leaving this stop -- tick unvisited !
+            if this_airport_stop is not None:
+                this_airport_stop.visited = False
         
 
         
@@ -390,6 +401,11 @@ class Trip():
     # Save memory -- whole Airports_Dict
     def save_memory(self):
         filename = self.airports_memory.filename
+        
+        # Folder for data saving nonexistent
+        if not os.path.isdir("./src/saved_data"):
+            os.mkdir("./src/saved_data")
+            
         with open(filename, 'wb') as file:
             pickle.dump(self.airports_memory, file)
             if DEBUG_BASIC:
@@ -402,7 +418,7 @@ class Trip():
         try:
             with open(filename, 'rb') as file:
                 loaded_airports_memory = pickle.load(file)
-        except FileNotFoundError:
+        except:
             if DEBUG_BASIC:
                 print("Loading file not found -- ignoring")
             return
@@ -439,7 +455,7 @@ if __name__ == "__main__":
     trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration)
     
     # Search for an optimal paths
-    DSF_maxdepth = 2 # Note: 0 --> No flights searched
+    DSF_maxdepth = 1 # Note: 0 --> No flights searched
     valid_paths = trip.searchDSF(DSF_maxdepth) 
     
     # Save memory of airports in trip
