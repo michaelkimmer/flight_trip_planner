@@ -45,69 +45,114 @@ class Airport():
         self.data_incommings = []    # Connection objects
         
         # Bools
-        self.cheapDestinations_searched = {'Ryanair': False}
-        # self.flights_searched = {'Ryanair': False}
+        self.cheapDestinations_searched = {'Ryanair': False} # For searching all departures
+        
 
         # Searching alg bool
         self.visited = False # Note we can use an airport twice !!, (not used)
 
 
     # Get all cheap destinations + flights
-    def search_Ryanair_cheapDestinations(self, trip_boundaries, max_price):
+    def search_Ryanair_cheapDestinations(self, trip_boundaries, max_price, oneDestination=None):
         # Escape when already done
         if self.cheapDestinations_searched['Ryanair']:
             return
-        self.cheapDestinations_searched['Ryanair'] = True
-
-        if DEBUG_BASIC:
-            print(f"Getting cheap destinations from {self.code}")
+        if oneDestination is None:
+            self.cheapDestinations_searched['Ryanair'] = True
         
-        # Get cheap destinations
-        max_destinations = 50
-
-        if self.currency == 'EUR':
-            max_price_local_currency = round(max_price)
-        else:
-            max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
-
-        time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
-        with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price_local_currency}") as url:
-            destinations_json = json.load(url)
-        # TODO: Exception
+        #Searching one destination -- does the connection already exist?
+        if oneDestination is not None:
+            # Find the connection in the departure airport
+            oneConnection = None
+            for connection in self.data_destinations:
+                if oneDestination is connection.airport_arrival:
+                    oneConnection = connection
+                    break
+            
+            # This exact connection has been already searched !!
+            if (oneConnection is not None) and (oneConnection.cheapDestination_searched['Ryanair']):
+                return
         
-        
-        # DEBUG -- print all Ryanair_cheapDestinations
-        if DEBUG_RYANAIR:
-            print("DEBUG search_Ryanair_cheapDestinations:")
-            # print(destinations_json['fares'])
+            # This airport was not searched before
+            if oneConnection is None:
+                pass 
+            
+            
+       
+
+        # Already searched for chep destinations?
+        if not self.cheapDestinations['Ryanair']:
+            if DEBUG_BASIC:
+                print(f"Getting cheap destinations from {self.code}")
+            
+            # Get cheap destinations
+            max_destinations = 50
+
+            if self.currency == 'EUR':
+                max_price_local_currency = round(max_price)
+            else:
+                max_price_local_currency = round(currency_convert("EUR", self.currency, max_price))
+
+            time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
+            with urllib.request.urlopen(f"https://www.ryanair.com/api/farfnd/3/oneWayFares?&ToUs=AGREED&departureAirportIataCode={self.code}&language=en&limit={max_destinations}&market=en-ie&offset=0&outboundDepartureDateFrom={trip_boundaries[0].strftime('%Y-%m-%d')}&outboundDepartureDateTo={trip_boundaries[1].strftime('%Y-%m-%d')}&priceValueTo={max_price_local_currency}") as url:
+                destinations_json = json.load(url)
+            # TODO: Exception
+            
+            
+            # DEBUG -- print all Ryanair_cheapDestinations
+            if DEBUG_RYANAIR:
+                print("DEBUG search_Ryanair_cheapDestinations:")
+                # print(destinations_json['fares'])
+                for destination in destinations_json['fares']:
+                    print(destination['outbound']['arrivalAirport']['name'], end=" --- ")
+                    print(destination['outbound']['price']['value'])
+            
+            # Save codes of all cheap destinations
             for destination in destinations_json['fares']:
-                print(destination['outbound']['arrivalAirport']['name'], end=" --- ")
-                print(destination['outbound']['price']['value'])
-        
-        # Save codes of all cheap destinations
-        for destination in destinations_json['fares']:
-            dest_code = destination['outbound']['arrivalAirport']['iataCode']
-            self.cheapDestinations['Ryanair'].append(dest_code)       
-            
-        # Create connection between Airports (if nonexistent)
-        for dest_code in self.cheapDestinations['Ryanair']:
-            if dest_code not in self.data_destinations:
-                dest_airport_ref = self.memory_ref.get_ref(dest_code)
-                connection = Connection(self, dest_airport_ref)
-                # Append the connection ref to both airports
-                self.data_destinations.append(connection)
-                dest_airport_ref.data_incommings.append(connection)
+                dest_code = destination['outbound']['arrivalAirport']['iataCode']
+                self.cheapDestinations['Ryanair'].append(dest_code)       
                 
-        
-        # Fill each connection with flights (Get flights into this cheap destinations)  
-        for connection in self.data_destinations:
-            if connection.airport_arrival.code in self.cheapDestinations['Ryanair']:
-                self._search_Ryanair_cheapFlights(connection, trip_boundaries, max_price)
+            # Create connection between Airports (if nonexistent)
+            for dest_code in self.cheapDestinations['Ryanair']:
+                if dest_code not in self.data_destinations:
+                    dest_airport_ref = self.memory_ref.get_ref(dest_code)
+                    connection = Connection(self, dest_airport_ref)
+                    # Append the connection ref to both airports
+                    self.data_destinations.append(connection)
+                    dest_airport_ref.data_incommings.append(connection)
+                    
             
+        # Fill each connection with flights (Get flights into this cheap destinations)  
+        if oneDestination is None:
+            for connection in self.data_destinations:
+                if connection.airport_arrival.code in self.cheapDestinations['Ryanair']:
+                    self._search_Ryanair_cheapFlights(connection, trip_boundaries, max_price)
+        # Search only for this one Connection
+        else:
+            #Searching one destination -- does the connection already exist? (again)
+            # Find the connection in the departure airport
+            oneConnection = None
+            for connection in self.data_destinations:
+                if oneDestination is connection.airport_arrival:
+                    oneConnection = connection
+                    break                   
+            if oneConnection is not None:
+                self._search_Ryanair_cheapFlights(oneConnection, trip_boundaries, max_price)
+            # else: No connection --> no flights
+
+
+            
+            
+
 
 
     # Get cheap flights into destination --> FILL its connection
     def _search_Ryanair_cheapFlights(self, connection, trip_boundaries, max_price):
+        if connection.cheapDestination_searched['Ryanair']:
+            return
+        else:
+            connection.cheapDestination_searched['Ryanair'] = True
+            
         source = connection.airport_departure
         dest = connection.airport_arrival
         
@@ -236,6 +281,10 @@ class Connection():
     def __init__(self, airport_departure, airport_arrival, flights=None) -> None:        
         self.airport_departure = airport_departure  # Airport object
         self.airport_arrival = airport_arrival      # Airport object
+        
+        # Bools
+        self.cheapDestination_searched = {'Ryanair': False} # For searching one departure
+        
         if flights is None:
             self.flights = []
         
@@ -356,11 +405,18 @@ class Trip():
                 # Update Flights
                 if current_transfersDone == self.trip_max_transfers:
                     # Last transfer can be used --> update flights only to to Stop/Destination
-                    # TODO: Search only for flights to Stop/Destination
-                    current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3) # Remove this line then !!!
+                    for stop in self.stops:
+                        if stop.visited:
+                            continue
+                        for stop_airport in stop.airports:
+                            current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/4, oneDestination=stop_airport) 
+                    for dest_airport in self.destination.airports:
+                        current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/4, oneDestination=dest_airport) 
+                        
+
                 else:
                     # All return passed --> update all possible flights from here
-                    current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
+                    current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/4)
                             
                 # Use each possible destination
                 for connection in current_source_airport.data_destinations:
@@ -416,10 +472,11 @@ class Trip():
             for flight in path:
                 if last_arrival != flight.airport_departure.code:
                     # Leave stop from different airport
-                    print(f"--{flight.airport_departure.code}")
+                    print(f"--{flight.airport_departure.code}", end='')
                     
-                print(f"--({flight.time_departure}, {flight.price}EUR)-->{flight.airport_arrival.code}")
+                print(f"--({flight.time_departure}, {flight.price:.2f}EUR)-->{flight.airport_arrival.code}", end='')
                 last_arrival = flight.airport_arrival.code
+            print("")
 
 
 
@@ -470,18 +527,18 @@ if __name__ == "__main__":
     
     sources_codes = ('PRG', 'BRQ', 'PED', 'OSR')  # ('PRG', 'BRQ')
     destinations_codes = ('PRG', 'BRQ', 'PED', 'OSR')
-    stops_codes = [('STN', 'LTN', 'LGW')]
-    stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=5))]
+    stops_codes = [('FAO', 'LIS', 'OPO')] # [('STN', 'LTN', 'LGW')]
+    stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=6))]
     # trip_boundaries = [time_now, time_inMonth]
     trip_boundaries = [datetime.datetime(2024,2,1), datetime.datetime(2024,2,29)]
-    trip_max_price = 40 # Currency: "EUR"
-    transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=5))
-    trip_max_transfers = 0 # Max number of transfers between each stop (or source/destination)
+    trip_max_price = 80 # Currency: "EUR"
+    transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=24))
+    trip_max_transfers = 1 # Max number of transfers between each stop (or source/destination)
 
     trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration, trip_max_transfers)
     
     # Search for an optimal paths
-    DSF_maxdepth = 2 # Note: 0 --> No flights searched
+    DSF_maxdepth = 20 # Note: 0 --> No flights searched # Note2: trip_max_transfers more advanced !! (delete this in future?)
     valid_paths = trip.searchDSF(DSF_maxdepth) 
     
     # Save memory of airports in trip
