@@ -262,7 +262,7 @@ class Flight():
     
     
 class Trip():
-    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration) -> None:
+    def __init__(self, sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration, trip_max_transfers) -> None:
         
         # Check codes vs durations
         assert len(stops_codes) == len(stops_durations), "Stops must meet: len(stops_codes) == len(stops_durations)"
@@ -291,6 +291,7 @@ class Trip():
         self.trip_boundaries = trip_boundaries
         self.trip_max_price = trip_max_price
         self.transfer_duration = transfer_duration
+        self.trip_max_transfers = trip_max_transfers
 
 
     # Search for routes: DSF from Trip_Source --> Trip_Destination
@@ -302,7 +303,9 @@ class Trip():
 
         # DSF recursionfunction
         act_path = []
-        def DSF_recursion(current_source, DSF_depth, current_time, current_price):
+        def DSF_recursion(current_source, DSF_depth, current_time, current_price, current_transfersDone):
+            
+            current_transfersDone += 1
 
             # Note: an airport can be used more times --> no mark of visited node --> track actual path of flights
             # Check this Airport -- Final Destination !
@@ -324,6 +327,7 @@ class Trip():
             # Check this Airport -- source?
             if DSF_depth == 0:
                 current_boundaries = self.trip_boundaries 
+                current_transfersDone = 0
             else:
                 # Check this Airport -- Stop? (unvisited? -- otherwise treat as transfer)
                 for stop in self.stops:
@@ -331,12 +335,22 @@ class Trip():
                         this_airport_stop = stop
                         this_airport_stop.visited = True
                         current_boundaries = [current_time + this_airport_stop.duration[0], current_time + this_airport_stop.duration[1]]
+                        current_transfersDone = 0
                         break
             
             
-
-            # update flights 
-            current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
+            # Check if there has already been used max num of transfers between each source-stops-destination
+            if current_transfersDone > self.trip_max_transfers:
+                # Note: this_airport_stop.visited cannot be raised here
+                return
+            elif current_transfersDone == self.trip_max_transfers:
+                # Last transfer can be used --> update flights only to to Stop/Destination
+                # TODO: Search only for flights to Stop/Destination
+                current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3) # Remove this line then !!!
+                
+            else:
+                # All return passed --> update all possible flights from here
+                current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
 
             # Use each possible flight
             for connection in current_source.data_destinations:
@@ -347,7 +361,7 @@ class Trip():
                     # Check flight constraints (depth- above, price, time) 
                     if (current_price + flight.price < self.trip_max_price) and (current_boundaries[0] < flight.time_departure < current_boundaries[1]): 
                         act_path.append(flight)
-                        DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price) # TODO: start also at other airports in the Stop !!!
+                        DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price, current_transfersDone) # TODO: start also at other airports in the Stop !!!
                         act_path.pop()
             
             
@@ -362,7 +376,7 @@ class Trip():
         # Initialize DSF with sources (Airports)
         sources = self.source.airports
         for source in sources:
-            DSF_recursion(source, DSF_depth=0, current_time=self.trip_boundaries[0], current_price=0)
+            DSF_recursion(source, DSF_depth=0, current_time=self.trip_boundaries[0], current_price=0, current_transfersDone=0)
             
             
         return valid_paths
@@ -443,19 +457,20 @@ if __name__ == "__main__":
     time_now = datetime.datetime.now()
     time_inMonth = time_now + datetime.timedelta(days=30)
     
-    sources_codes = ('PRG', 'BRQ',)  # ('PRG', 'BRQ')
-    destinations_codes = ('PRG', 'BRQ')
-    stops_codes = [('STN', 'LTN')]
-    stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=4))]
+    sources_codes = ('PRG', 'BRQ', 'PED', 'OSR')  # ('PRG', 'BRQ')
+    destinations_codes = ('PRG', 'BRQ', 'PED', 'OSR')
+    stops_codes = [('STN', 'LTN', 'LGW')]
+    stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=5))]
     # trip_boundaries = [time_now, time_inMonth]
-    trip_boundaries = [time_now + datetime.timedelta(days=1), time_now + datetime.timedelta(days=29)]
+    trip_boundaries = [datetime.datetime(2024,2,1), datetime.datetime(2024,2,29)]
     trip_max_price = 40 # Currency: "EUR"
     transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=5))
+    trip_max_transfers = 0 # Max number of transfers between each stop (or source/destination)
 
-    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration)
+    trip = Trip(sources_codes, destinations_codes, stops_codes, stops_durations, trip_boundaries, trip_max_price, transfer_duration, trip_max_transfers)
     
     # Search for an optimal paths
-    DSF_maxdepth = 1 # Note: 0 --> No flights searched
+    DSF_maxdepth = 2 # Note: 0 --> No flights searched
     valid_paths = trip.searchDSF(DSF_maxdepth) 
     
     # Save memory of airports in trip
