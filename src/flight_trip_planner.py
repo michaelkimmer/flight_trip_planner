@@ -343,26 +343,37 @@ class Trip():
             if current_transfersDone > self.trip_max_transfers:
                 # Note: this_airport_stop.visited cannot be raised here
                 return
-            elif current_transfersDone == self.trip_max_transfers:
-                # Last transfer can be used --> update flights only to to Stop/Destination
-                # TODO: Search only for flights to Stop/Destination
-                current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3) # Remove this line then !!!
-                
+
+
+            # Use each possible Airport (if I'm currently at Stop)
+            if this_airport_stop is not None:
+                current_source_airports = this_airport_stop.airports # Fill all airports from this Stop
             else:
-                # All return passed --> update all possible flights from here
-                current_source.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
+                current_source_airports = [current_source] # Fill the current airport
+                
+            for current_source_airport in current_source_airports:    
+                
+                # Update Flights
+                if current_transfersDone == self.trip_max_transfers:
+                    # Last transfer can be used --> update flights only to to Stop/Destination
+                    # TODO: Search only for flights to Stop/Destination
+                    current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3) # Remove this line then !!!
+                else:
+                    # All return passed --> update all possible flights from here
+                    current_source_airport.search_Ryanair_cheapDestinations(self.trip_boundaries, self.trip_max_price  * 2/3)
+                            
+                # Use each possible destination
+                for connection in current_source_airport.data_destinations:
+                    current_dest = connection.airport_arrival
 
-            # Use each possible flight
-            for connection in current_source.data_destinations:
-                current_dest = connection.airport_arrival
-
-                for flight in connection.flights:
-                    
-                    # Check flight constraints (depth- above, price, time) 
-                    if (current_price + flight.price < self.trip_max_price) and (current_boundaries[0] < flight.time_departure < current_boundaries[1]): 
-                        act_path.append(flight)
-                        DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price, current_transfersDone) # TODO: start also at other airports in the Stop !!!
-                        act_path.pop()
+                    # Use each possible flight
+                    for flight in connection.flights:
+                        
+                        # Check flight constraints (depth- above, price, time) 
+                        if (current_price + flight.price < self.trip_max_price) and (current_boundaries[0] < flight.time_departure < current_boundaries[1]): 
+                            act_path.append(flight)
+                            DSF_recursion(current_dest, DSF_depth+1, flight.time_arrival, current_price + flight.price, current_transfersDone) # TODO: start also at other airports in the Stop !!!
+                            act_path.pop()
             
             
             # When leaving this stop -- tick unvisited !
