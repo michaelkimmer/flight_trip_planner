@@ -23,9 +23,11 @@ https://www.ryanair.com/api/booking/v4/en-gb/availability?ADT=1&TEEN=0&CHD=0&INF
 
 
 Currencies::
-https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur/czk.json
+https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/eur/czk.json ----- !!! -- not working now
 (https://github.com/fawazahmed0/currency-api#readme)
 
+Get the currency list with EUR as base currency:
+https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json
 
 
 

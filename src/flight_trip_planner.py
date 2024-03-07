@@ -17,17 +17,18 @@ DEBUG_TRIPS = True
 # Convert currencies fcn
 def currency_convert(code_from, code_to, price_from):
 
-    if DEBUG_BASIC:
-        print(f"Requesting conversion: {code_from}-->{code_to}")
+    # Load just once EUR --> everything
+    if currency_convert.rate_json is None:
+        print("Requesting currencies: EUR-->ALL")
+        with urllib.request.urlopen(f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json") as url:
+            currency_convert.rate_json = json.load(url)
+    
 
-    time.sleep(WAIT_MAX_INTERVAL*random.random()) #sleep random time 0..WAIT_MAX_INTERVAL
-    with urllib.request.urlopen(f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/{code_from.lower()}/{code_to.lower()}.json") as url:
-        rate_json = json.load(url)
-
-    rate = rate_json[code_to.lower()]
+    rate = currency_convert.rate_json['eur'][code_to.lower()] / currency_convert.rate_json['eur'][code_from.lower()]
 
     price_to = price_from * rate
     return price_to
+currency_convert.rate_json = None # Add function attribute (behaves as static variable)
 
 class Airport():
     def __init__(self, code, memory_ref, name, currency) -> None:
@@ -530,7 +531,7 @@ if __name__ == "__main__":
     stops_codes = [('FAO', 'LIS', 'OPO')] # [('STN', 'LTN', 'LGW')]
     stops_durations = [(datetime.timedelta(days=2),datetime.timedelta(days=6))]
     # trip_boundaries = [time_now, time_inMonth]
-    trip_boundaries = [datetime.datetime(2024,2,1), datetime.datetime(2024,2,29)]
+    trip_boundaries = [datetime.datetime(2024,3,8), datetime.datetime(2024,3,31)]
     trip_max_price = 80 # Currency: "EUR"
     transfer_duration = (datetime.timedelta(hours=1),datetime.timedelta(hours=24))
     trip_max_transfers = 1 # Max number of transfers between each stop (or source/destination)
